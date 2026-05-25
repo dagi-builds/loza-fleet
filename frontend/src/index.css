@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold: #F5A623;
+  --gold2: #FFD166;
+  --cyan: #00D4FF;
+  --green: #00FF88;
+  --red: #FF4757;
+  --navy: #020B18;
+  --navy2: #041428;
+  --panel: rgba(4, 20, 40, 0.9);
+  --border: rgba(245, 166, 35, 0.15);
+  --et-green: #2E7D32;
+  --et-yellow: #FDD835;
+  --et-red: #D32F2F;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Rajdhani', 'Segoe UI', sans-serif;
+  background: var(--navy);
+  color: #e2e8f0;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 166, 35, 0.3);
+  border-radius: 2px;
+}
+
+.et-bar {
+  height: 3px;
+  background: linear-gradient(90deg, var(--et-green) 0%, var(--et-yellow) 50%, var(--et-red) 100%);
+  border-radius: 99px;
+}
+
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.5);
+  }
+
+  70% {
+    box-shadow: 0 0 0 8px rgba(0, 255, 136, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0);
+  }
+}
+
+.anim-fade-up {
+  animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.4s ease both;
+}
+
+.anim-pulse-ring {
+  animation: pulse-ring 2.5s ease infinite;
+}
+
+.delay-1 {
+  animation-delay: 0.06s;
+}
+
+.delay-2 {
+  animation-delay: 0.12s;
+}
+
+.delay-3 {
+  animation-delay: 0.18s;
+}
+
+.delay-4 {
+  animation-delay: 0.24s;
+}
+
+.input-field {
+  width: 100%;
+  background: rgba(2, 11, 24, 0.9);
+  border: 1px solid rgba(245, 166, 35, 0.2);
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 13px 16px;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.25s;
+}
+
+.input-field::placeholder {
+  color: rgba(226, 232, 240, 0.22);
+}
+
+.input-field:focus {
+  border-color: rgba(245, 166, 35, 0.65);
+  box-shadow: 0 0 0 3px rgba(245, 166, 35, 0.07), 0 0 20px rgba(245, 166, 35, 0.1);
+}
+
+.premium-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.2s;
+}
+
+.premium-row:hover {
+  background: rgba(245, 166, 35, 0.03);
+}
+
+.premium-row:last-child {
+  border-bottom: none;
+}
