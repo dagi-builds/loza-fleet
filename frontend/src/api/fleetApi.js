@@ -1,4 +1,4 @@
-const BASE = 'https://loza-fleet-46s5.vercel.app/api'
+const BASE = 'https://loza-fleet-demi.vercel.app/api'
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
