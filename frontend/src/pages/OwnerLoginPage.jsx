@@ -42,13 +42,13 @@ export default function OwnerLoginPage({ onSuccess, onBack }) {
             justifyContent: 'center', margin: '0 auto 16px',
             boxShadow: '0 8px 30px rgba(245,166,35,0.4)',
           }}>
-            <span style={{ fontSize: 28 }}>👔</span>
+            <span style={{ fontSize: 28 }}>🔐</span>
           </div>
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: '#fff', letterSpacing: '0.06em' }}>
-            OWNER LOGIN
+            ADMIN LOGIN
           </h2>
           <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.3)', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 4 }}>
-            Enter your password to continue
+            Authorized personnel only
           </p>
         </div>
 
@@ -56,7 +56,7 @@ export default function OwnerLoginPage({ onSuccess, onBack }) {
           <input
             className="input-field"
             type="password"
-            placeholder="Owner Password"
+            placeholder="Enter access password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}
@@ -79,7 +79,7 @@ export default function OwnerLoginPage({ onSuccess, onBack }) {
             boxShadow: '0 6px 25px rgba(245,166,35,0.3)',
             transition: 'all 0.2s',
           }}>
-            {loading ? 'CHECKING...' : 'ENTER DASHBOARD'}
+            {loading ? 'CHECKING...' : 'LOGIN'}
           </button>
         </div>
       </div>
