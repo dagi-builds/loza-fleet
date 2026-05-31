@@ -129,7 +129,55 @@ app.post('/api/owner/login', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+const Manager = require('./models/Manager');
 
+// Manager login
+app.post('/api/manager/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password)
+    return res.status(400).json({ error: 'Missing fields' });
+  try {
+    const manager = await Manager.findOne({ username });
+    if (!manager || manager.password !== password)
+      return res.status(401).json({ error: 'Wrong username or password' });
+    res.json({ success: true, manager });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Owner creates a manager
+app.post('/api/owner/managers', async (req, res) => {
+  const { name, username, password, permissions } = req.body;
+  if (!name || !username || !password)
+    return res.status(400).json({ error: 'Missing fields' });
+  try {
+    let manager = await Manager.findOne({ username });
+    if (manager) {
+      manager.name = name;
+      manager.password = password;
+      if (permissions) manager.permissions = permissions;
+      await manager.save();
+    } else {
+      manager = await Manager.create({ name, username, password, permissions });
+    }
+    res.json(manager);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Owner gets all managers
+app.get('/api/owner/managers', async (req, res) => {
+  try {
+    const managers = await Manager.find().sort({ createdAt: -1 });
+    res.json(managers);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
+// Owner deletes a manager
+app.delete('/api/owner/managers/:id', async (req, res) => {
+  try {
+    await Manager.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
 // Owner change password
 app.post('/api/owner/change-password', async (req, res) => {
   const { currentPassword, newPassword } = req.body;

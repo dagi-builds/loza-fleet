@@ -114,3 +114,25 @@ export function denyTripRequest(id) {
 export function getPendingTripCount() {
   return request('/trips/requests/pending/count')
 }
+// Manager
+export function managerLogin(username, password) {
+  return request('/manager/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function createManager(data) {
+  return request('/owner/managers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function getManagers() {
+  return request('/owner/managers')
+}
+
+export function deleteManager(id) {
+  return request(`/owner/managers/${id}`, { method: 'DELETE' })
+}
