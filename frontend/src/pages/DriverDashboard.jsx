@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { logTrip, logFuel, submitRequest, getDriverRequests } from '../api/fleetApi'
+import { requestTrip, logFuel, submitRequest, getDriverRequests } from '../api/fleetApi'
 import DriverCard from '../components/DriverCard'
 import TripButton from '../components/TripButton'
 
@@ -34,8 +34,6 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
     const [reqLoading, setReqLoading] = useState(false)
     const [reqSuccess, setReqSuccess] = useState(false)
     const [tripLogs, setTripLogs] = useState([])
-
-    // pagination
     const [reqPage, setReqPage] = useState(1)
     const PER_PAGE = 5
 
@@ -51,10 +49,9 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
     async function handleTrip() {
         setActionLoading('trip')
         try {
-            await logTrip(driver.id)
-            const now = new Date()
-            setDriver(p => ({ ...p, trips: Number(p.trips) + 1, profit: Number(p.profit) + 800, bonus: Number(p.bonus) + 50 }))
-            setTripLogs(prev => [{ time: now.toLocaleTimeString(), date: now.toLocaleDateString() }, ...prev])
+            await requestTrip(driver.id)
+            setTripLogs(prev => [{ time: new Date().toLocaleTimeString(), status: 'pending' }, ...prev])
+            alert('✅ Trip request sent! Waiting for owner approval.')
         } catch (e) { alert(e.message) }
         finally { setActionLoading('') }
     }
@@ -88,8 +85,6 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
     }
 
     const net = Number(driver.profit) - Number(driver.fuel)
-
-    // paginated requests
     const totalPages = Math.ceil(requests.length / PER_PAGE)
     const paginatedRequests = requests.slice((reqPage - 1) * PER_PAGE, reqPage * PER_PAGE)
 
@@ -194,16 +189,24 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
                             ))}
                         </div>
 
-                        {/* Today's trip log */}
+                        {/* Trip request logs */}
                         {tripLogs.length > 0 && (
                             <div style={{ background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(245,166,35,0.1)', borderRadius: 10, padding: 16 }}>
                                 <p style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, color: '#F5A623', letterSpacing: '0.1em', marginBottom: 12 }}>
-                                    TODAY'S TRIPS
+                                    TODAY'S TRIP REQUESTS
                                 </p>
                                 {tripLogs.map((t, i) => (
-                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < tripLogs.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                                        <span style={{ color: '#00FF88', fontSize: 13, fontWeight: 600 }}>🚛 Trip #{tripLogs.length - i}</span>
-                                        <span style={{ color: 'rgba(226,232,240,0.4)', fontSize: 12 }}>{t.time}</span>
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: i < tripLogs.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                                        <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>🚛 Request #{tripLogs.length - i}</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ color: 'rgba(226,232,240,0.4)', fontSize: 11 }}>{t.time}</span>
+                                            <span style={{
+                                                fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                                color: t.status === 'pending' ? '#F5A623' : t.status === 'approved' ? '#00FF88' : '#FF4757',
+                                                background: t.status === 'pending' ? 'rgba(245,166,35,0.1)' : t.status === 'approved' ? 'rgba(0,255,136,0.1)' : 'rgba(255,71,87,0.1)',
+                                                padding: '3px 8px', borderRadius: 4,
+                                            }}>{t.status}</span>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -245,46 +248,31 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>
-                                Amount (ETB)
-                            </label>
-                            <input type="number" placeholder="e.g. 2000"
-                                value={reqAmount} onChange={e => setReqAmount(e.target.value)}
-                                className="input-field" />
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>Amount (ETB)</label>
+                            <input type="number" placeholder="e.g. 2000" value={reqAmount} onChange={e => setReqAmount(e.target.value)} className="input-field" />
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>
-                                Your Phone Number
-                            </label>
-                            <input type="text" placeholder="e.g. 0911234567"
-                                value={reqPhone} onChange={e => setReqPhone(e.target.value)}
-                                className="input-field" />
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>Your Phone Number</label>
+                            <input type="text" placeholder="e.g. 0911234567" value={reqPhone} onChange={e => setReqPhone(e.target.value)} className="input-field" />
                         </div>
 
                         <div style={{ marginBottom: 20 }}>
-                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>
-                                Description (optional)
-                            </label>
-                            <textarea placeholder="Describe your request..."
-                                value={reqDesc} onChange={e => setReqDesc(e.target.value)}
-                                rows={3} style={{
-                                    width: '100%', background: 'rgba(2,11,24,0.9)',
-                                    border: '1px solid rgba(245,166,35,0.2)', color: '#fff',
-                                    fontFamily: "'Rajdhani', sans-serif", fontSize: 15, fontWeight: 500,
-                                    padding: '13px 16px', borderRadius: 8, outline: 'none', resize: 'vertical',
-                                    boxSizing: 'border-box',
-                                }} />
+                            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(245,166,35,0.55)', marginBottom: 6 }}>Description (optional)</label>
+                            <textarea placeholder="Describe your request..." value={reqDesc} onChange={e => setReqDesc(e.target.value)} rows={3} style={{
+                                width: '100%', background: 'rgba(2,11,24,0.9)',
+                                border: '1px solid rgba(245,166,35,0.2)', color: '#fff',
+                                fontFamily: "'Rajdhani', sans-serif", fontSize: 15, fontWeight: 500,
+                                padding: '13px 16px', borderRadius: 8, outline: 'none', resize: 'vertical', boxSizing: 'border-box',
+                            }} />
                         </div>
 
                         <button onClick={handleRequest} disabled={reqLoading} style={{
                             width: '100%',
                             background: reqLoading ? 'rgba(245,166,35,0.3)' : 'linear-gradient(135deg, #F5A623, #FFD166)',
                             color: '#020B18', fontFamily: "'Bebas Neue', sans-serif",
-                            fontSize: 20, letterSpacing: '0.1em',
-                            padding: '14px', borderRadius: 8, border: 'none',
-                            cursor: reqLoading ? 'not-allowed' : 'pointer',
-                            boxShadow: '0 6px 25px rgba(245,166,35,0.3)',
+                            fontSize: 20, letterSpacing: '0.1em', padding: '14px', borderRadius: 8, border: 'none',
+                            cursor: reqLoading ? 'not-allowed' : 'pointer', boxShadow: '0 6px 25px rgba(245,166,35,0.3)',
                         }}>
                             {reqLoading ? 'SUBMITTING...' : 'SUBMIT REQUEST'}
                         </button>
@@ -304,24 +292,18 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
                         ) : (
                             <>
                                 {paginatedRequests.map((r) => (
-                                    <div key={r._id} style={{
-                                        background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(255,255,255,0.06)',
-                                        borderRadius: 10, padding: '16px', marginBottom: 10,
-                                    }}>
+                                    <div key={r._id} style={{ background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '16px', marginBottom: 10 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                                             <div>
                                                 <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 16, color: '#fff', letterSpacing: '0.04em' }}>
                                                     {REQUEST_TYPES.find(t => t.value === r.type)?.label || r.type}
                                                 </p>
-                                                <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.3)', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
-                                                    {fmtDate(r.createdAt)}
-                                                </p>
+                                                <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.3)', marginTop: 2 }}>{fmtDate(r.createdAt)}</p>
                                             </div>
                                             <span style={{
                                                 background: statusBg[r.status], color: statusColor[r.status],
-                                                fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-                                                textTransform: 'uppercase', padding: '4px 10px', borderRadius: 4,
-                                                border: `1px solid ${statusColor[r.status]}40`,
+                                                fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+                                                padding: '4px 10px', borderRadius: 4, border: `1px solid ${statusColor[r.status]}40`,
                                             }}>{r.status}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -333,7 +315,6 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
                                     </div>
                                 ))}
 
-                                {/* Pagination */}
                                 {totalPages > 1 && (
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
                                         <button onClick={() => setReqPage(p => Math.max(1, p - 1))} disabled={reqPage === 1} style={{
