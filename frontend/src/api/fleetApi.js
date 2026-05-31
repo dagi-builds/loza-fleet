@@ -94,3 +94,23 @@ export function getActivity() {
 export function getChartStats() {
   return request('/stats/charts')
 }
+// ── Trip Verification ──────────────────────────────────────────
+export function requestTrip(driverId) {
+  return request('/trips/request', { method: 'POST', body: JSON.stringify({ driverId }) })
+}
+
+export function getTripRequests() {
+  return request('/trips/requests')
+}
+
+export function approveTripRequest(id) {
+  return request(`/trips/requests/${id}/approve`, { method: 'POST' })
+}
+
+export function denyTripRequest(id) {
+  return request(`/trips/requests/${id}/deny`, { method: 'POST' })
+}
+
+export function getPendingTripCount() {
+  return request('/trips/requests/pending/count')
+}

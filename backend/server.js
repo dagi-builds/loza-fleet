@@ -21,7 +21,85 @@ app.use(cors({
 app.use(express.json());
 
 connectDB();
+const TripRequest = require('./models/TripRequest');
+// ══════════════════════════════════════════════════════════════════
+// TRIP VERIFICATION ROUTES
+// ══════════════════════════════════════════════════════════════════
 
+// Driver submits a trip request
+app.post('/api/trips/request', async (req, res) => {
+  const { driverId } = req.body;
+  if (!driverId) return res.status(400).json({ error: 'driverId required' });
+  try {
+    const driver = await Driver.findOne({ id: driverId });
+    if (!driver) return res.status(404).json({ error: 'Driver not found' });
+    const tripRequest = await TripRequest.create({
+      driverId,
+      driverName: driver.name,
+      plate: driver.plate,
+    });
+    res.json({ success: true, tripRequest });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Owner gets all trip requests
+app.get('/api/trips/requests', async (req, res) => {
+  try {
+    const requests = await TripRequest.find()
+      .sort({ createdAt: -1 }).limit(50).lean();
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Owner approves a trip request
+app.post('/api/trips/requests/:id/approve', async (req, res) => {
+  try {
+    const tripRequest = await TripRequest.findByIdAndUpdate(
+      req.params.id, { status: 'approved' }, { new: true }
+    );
+    if (!tripRequest) return res.status(404).json({ error: 'Not found' });
+
+    // Now count the trip on the driver
+    const driver = await Driver.findOneAndUpdate(
+      { id: tripRequest.driverId },
+      { $inc: { trips: 1, profit: 800, bonus: 50 } },
+      { new: true }
+    );
+    await Trip.create({ driverId: tripRequest.driverId });
+    res.json({ success: true, tripRequest, driver });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Owner denies a trip request
+app.post('/api/trips/requests/:id/deny', async (req, res) => {
+  try {
+    const tripRequest = await TripRequest.findByIdAndUpdate(
+      req.params.id, { status: 'denied' }, { new: true }
+    );
+    if (!tripRequest) return res.status(404).json({ error: 'Not found' });
+    res.json({ success: true, tripRequest });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get pending trip requests count (for notifications)
+app.get('/api/trips/requests/pending/count', async (req, res) => {
+  try {
+    const count = await TripRequest.countDocuments({ status: 'pending' });
+    const latest = await TripRequest.find({ status: 'pending' })
+      .sort({ createdAt: -1 }).limit(5).lean();
+    res.json({ count, latest });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 // ── Seed owner account ─────────────────────────────────────────
 async function seedOwner() {
   const exists = await AdminUser.findOne({ username: 'owner' });
