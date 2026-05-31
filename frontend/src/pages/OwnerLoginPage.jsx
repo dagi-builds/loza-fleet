@@ -1,17 +1,25 @@
 import { useState } from 'react'
-import { ownerLogin } from '../api/fleetApi'
+import { ownerLogin, managerLogin } from '../api/fleetApi'
 
-export default function OwnerLoginPage({ onSuccess, onBack }) {
+export default function OwnerLoginPage({ onOwnerSuccess, onManagerSuccess, onBack }) {
+  const [mode, setMode] = useState('owner') // 'owner' or 'manager'
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleLogin() {
-    if (!password.trim()) { setError('Enter password'); return }
     setLoading(true); setError('')
     try {
-      await ownerLogin(password)
-      onSuccess()
+      if (mode === 'owner') {
+        if (!password.trim()) { setError('Enter password'); setLoading(false); return }
+        await ownerLogin(password)
+        onOwnerSuccess()
+      } else {
+        if (!username.trim() || !password.trim()) { setError('Enter username and password'); setLoading(false); return }
+        const data = await managerLogin(username, password)
+        onManagerSuccess(data.manager)
+      }
     } catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
@@ -34,7 +42,7 @@ export default function OwnerLoginPage({ onSuccess, onBack }) {
           display: 'flex', alignItems: 'center', gap: 6,
         }}>← Back</button>
 
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 64, height: 64,
             background: 'linear-gradient(135deg, #F5A623, #FFD166)',
@@ -45,18 +53,42 @@ export default function OwnerLoginPage({ onSuccess, onBack }) {
             <span style={{ fontSize: 28 }}>🔐</span>
           </div>
           <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: '#fff', letterSpacing: '0.06em' }}>
-            ADMIN LOGIN
+            ADMIN ACCESS
           </h2>
           <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.3)', fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 4 }}>
             Authorized personnel only
           </p>
         </div>
 
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 24, background: 'rgba(4,20,40,0.9)', borderRadius: 10, padding: 4 }}>
+          {[['owner', '👔 Owner'], ['manager', '👥 Manager']].map(([m, label]) => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setPassword(''); setUsername('') }} style={{
+              flex: 1, padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: "'Bebas Neue', sans-serif", fontSize: 15, letterSpacing: '0.08em',
+              background: mode === m ? 'linear-gradient(135deg, #F5A623, #FFD166)' : 'transparent',
+              color: mode === m ? '#020B18' : 'rgba(226,232,240,0.4)',
+              transition: 'all 0.2s',
+            }}>{label}</button>
+          ))}
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {mode === 'manager' && (
+            <input
+              className="input-field"
+              type="text"
+              placeholder="Manager username"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+            />
+          )}
+
           <input
             className="input-field"
             type="password"
-            placeholder="Enter access password"
+            placeholder={mode === 'owner' ? 'Owner password' : 'Manager password'}
             value={password}
             onChange={e => setPassword(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleLogin()}

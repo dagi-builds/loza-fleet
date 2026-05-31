@@ -1,4 +1,4 @@
-export default function LandingPage({ onDriver, onOwner }) {
+export default function LandingPage({ onDriver }) {
     return (
         <div style={{
             minHeight: '100vh', background: '#020B18',
@@ -40,49 +40,27 @@ export default function LandingPage({ onDriver, onOwner }) {
                     Construction PLC · Fleet Command System
                 </p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    {/* Driver button */}
-                    <button onClick={onDriver}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                        style={{
-                            background: 'linear-gradient(135deg, #00C853, #00E676)',
-                            border: 'none', borderRadius: 12, padding: '22px 24px',
-                            cursor: 'pointer', transition: 'all 0.2s',
-                            boxShadow: '0 6px 25px rgba(0,200,83,0.3)',
-                            display: 'flex', alignItems: 'center', gap: 16,
-                        }}>
-                        <span style={{ fontSize: 32 }}>🚛</span>
-                        <div style={{ textAlign: 'left' }}>
-                            <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#020B18', letterSpacing: '0.06em' }}>
-                                I AM A DRIVER
-                            </p>
-                            <p style={{ fontSize: 11, color: 'rgba(2,11,24,0.6)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                                Log trips, fuel & requests
-                            </p>
-                        </div>
-                    </button>
-
-                    {/* Owner button — subtle, no label */}
-                    <button onClick={onOwner}
-                        onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
-                        style={{
-                            background: 'rgba(4,20,40,0.8)',
-                            border: '1px solid rgba(245,166,35,0.2)',
-                            borderRadius: 12, padding: '14px 24px',
-                            cursor: 'pointer', transition: 'all 0.2s',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                        }}>
-                        <span style={{ fontSize: 16 }}>🔐</span>
-                        <p style={{
-                            fontFamily: "'Rajdhani', sans-serif", fontSize: 13, fontWeight: 700,
-                            color: 'rgba(226,232,240,0.35)', letterSpacing: '0.14em', textTransform: 'uppercase',
-                        }}>
-                            Admin Access
+                <button onClick={onDriver}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+                    style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #00C853, #00E676)',
+                        border: 'none', borderRadius: 12, padding: '22px 24px',
+                        cursor: 'pointer', transition: 'all 0.2s',
+                        boxShadow: '0 6px 25px rgba(0,200,83,0.3)',
+                        display: 'flex', alignItems: 'center', gap: 16,
+                    }}>
+                    <span style={{ fontSize: 32 }}>🚛</span>
+                    <div style={{ textAlign: 'left' }}>
+                        <p style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: '#020B18', letterSpacing: '0.06em' }}>
+                            I AM A DRIVER
                         </p>
-                    </button>
-                </div>
+                        <p style={{ fontSize: 11, color: 'rgba(2,11,24,0.6)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            Log trips, fuel & requests
+                        </p>
+                    </div>
+                </button>
 
                 <p style={{
                     marginTop: 40, fontSize: 10, color: 'rgba(226,232,240,0.15)',
