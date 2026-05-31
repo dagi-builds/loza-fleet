@@ -51,7 +51,7 @@ export default function DriverDashboard({ driver: initialDriver, onLogout }) {
         try {
             await requestTrip(driver.id)
             setTripLogs(prev => [{ time: new Date().toLocaleTimeString(), status: 'pending' }, ...prev])
-            alert('✅ Trip request sent! Waiting for owner approval.')
+            alert('✅ Trip request sent! Waiting for approval.')
         } catch (e) { alert(e.message) }
         finally { setActionLoading('') }
     }
