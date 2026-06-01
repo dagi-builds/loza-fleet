@@ -1,4 +1,5 @@
 const BASE = 'https://loza-fleet-demi.vercel.app/api'
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -74,26 +75,10 @@ export function getDriverHistory(driverId) {
   return request(`/drivers/${driverId}/history`)
 }
 
-export function logTrip(driverId) {
-  return request('/trips', { method: 'POST', body: JSON.stringify({ driverId }) })
-}
-
 export function logFuel(driverId, amount) {
   return request('/fuel', { method: 'POST', body: JSON.stringify({ driverId, amount }) })
 }
 
-// ── Fleet & Charts ─────────────────────────────────────────────
-export function getFleet() {
-  return request('/fleet')
-}
-
-export function getActivity() {
-  return request('/fleet/activity')
-}
-
-export function getChartStats() {
-  return request('/stats/charts')
-}
 // ── Trip Verification ──────────────────────────────────────────
 export function requestTrip(driverId) {
   return request('/trips/request', { method: 'POST', body: JSON.stringify({ driverId }) })
@@ -114,25 +99,16 @@ export function denyTripRequest(id) {
 export function getPendingTripCount() {
   return request('/trips/requests/pending/count')
 }
-// Manager
-export function managerLogin(username, password) {
-  return request('/manager/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  })
+
+// ── Fleet & Charts ─────────────────────────────────────────────
+export function getFleet() {
+  return request('/fleet')
 }
 
-export function createManager(data) {
-  return request('/owner/managers', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
+export function getActivity() {
+  return request('/fleet/activity')
 }
 
-export function getManagers() {
-  return request('/owner/managers')
-}
-
-export function deleteManager(id) {
-  return request(`/owner/managers/${id}`, { method: 'DELETE' })
+export function getChartStats() {
+  return request('/stats/charts')
 }
