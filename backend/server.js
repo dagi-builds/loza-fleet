@@ -313,6 +313,28 @@ app.get('/api/stats/charts', async (req, res) => {
   } catch (err) { res.status(500).json({ error: 'Server error' }); }
 });
 
+// Daily trips per driver (today only)
+app.get('/api/stats/daily-trips', async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayTrips = await TripRequest.find({
+      status: 'approved',
+      createdAt: { $gte: today, $lt: tomorrow }
+    }).lean();
+
+    const countMap = {};
+    todayTrips.forEach(t => {
+      countMap[t.driverId] = (countMap[t.driverId] || 0) + 1;
+    });
+
+    res.json(countMap);
+  } catch (err) { res.status(500).json({ error: 'Server error' }); }
+});
+
 app.get('/api/fleet', async (req, res) => {
   try {
     const drivers = await Driver.find().sort({ profit: -1 });
