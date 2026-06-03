@@ -9,6 +9,7 @@ const requestSchema = new mongoose.Schema({
     description: { type: String, default: '' },
     phone: { type: String, default: '' },
     status: { type: String, enum: ['pending', 'approved', 'denied'], default: 'pending' },
+    ownerNote: { type: String, default: '' },
     paidViaChapa: { type: Boolean, default: false },
 }, { timestamps: true });
 

@@ -1,4 +1,4 @@
-const BASE = 'https://loza-fleet-demi.vercel.app/api'
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -12,13 +12,9 @@ async function request(path, options = {}) {
   return res.json()
 }
 
-// ── Owner ──────────────────────────────────────────────────────
+// Owner
 export function ownerLogin(password) {
   return request('/owner/login', { method: 'POST', body: JSON.stringify({ password }) })
-}
-
-export function changePassword(currentPassword, newPassword) {
-  return request('/owner/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) })
 }
 
 export function createDriver(data) {
@@ -29,10 +25,6 @@ export function getOwnerRequests() {
   return request('/owner/requests')
 }
 
-export function getNotifications() {
-  return request('/owner/notifications')
-}
-
 export function approveRequest(id) {
   return request(`/owner/requests/${id}/approve`, { method: 'POST' })
 }
@@ -41,7 +33,31 @@ export function denyRequest(id) {
   return request(`/owner/requests/${id}/deny`, { method: 'POST' })
 }
 
-// ── Manager ────────────────────────────────────────────────────
+export function addNoteToRequest(id, note) {
+  return request(`/owner/requests/${id}/note`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
+}
+
+export function getOwnerTripRequests() {
+  return request('/owner/trip-requests')
+}
+
+export function approveTripRequest(id) {
+  return request(`/owner/trip-requests/${id}/approve`, { method: 'POST' })
+}
+
+export function denyTripRequest(id) {
+  return request(`/owner/trip-requests/${id}/deny`, { method: 'POST' })
+}
+
+// Also used by manager
+export function getTripRequests() {
+  return request('/owner/trip-requests')
+}
+
+// Manager
 export function managerLogin(username, password) {
   return request('/manager/login', { method: 'POST', body: JSON.stringify({ username, password }) })
 }
@@ -58,9 +74,17 @@ export function deleteManager(id) {
   return request(`/owner/managers/${id}`, { method: 'DELETE' })
 }
 
-// ── Driver ─────────────────────────────────────────────────────
+// Driver
 export function loginWithPin(pin) {
   return request('/drivers/login', { method: 'POST', body: JSON.stringify({ pin }) })
+}
+
+export function requestTrip(driverId, note = '') {
+  return request('/trips/request', { method: 'POST', body: JSON.stringify({ driverId, note }) })
+}
+
+export function getDriverTripRequests(driverId) {
+  return request(`/drivers/${driverId}/trip-requests`)
 }
 
 export function submitRequest(data) {
@@ -71,36 +95,11 @@ export function getDriverRequests(driverId) {
   return request(`/drivers/${driverId}/requests`)
 }
 
-export function getDriverHistory(driverId) {
-  return request(`/drivers/${driverId}/history`)
-}
-
 export function logFuel(driverId, amount) {
   return request('/fuel', { method: 'POST', body: JSON.stringify({ driverId, amount }) })
 }
 
-// ── Trip Verification ──────────────────────────────────────────
-export function requestTrip(driverId) {
-  return request('/trips/request', { method: 'POST', body: JSON.stringify({ driverId }) })
-}
-
-export function getTripRequests() {
-  return request('/trips/requests')
-}
-
-export function approveTripRequest(id) {
-  return request(`/trips/requests/${id}/approve`, { method: 'POST' })
-}
-
-export function denyTripRequest(id) {
-  return request(`/trips/requests/${id}/deny`, { method: 'POST' })
-}
-
-export function getPendingTripCount() {
-  return request('/trips/requests/pending/count')
-}
-
-// ── Fleet & Charts ─────────────────────────────────────────────
+// Fleet
 export function getFleet() {
   return request('/fleet')
 }
@@ -109,6 +108,11 @@ export function getActivity() {
   return request('/fleet/activity')
 }
 
-export function getChartStats() {
-  return request('/stats/charts')
+// Export
+export function exportExcel() {
+  window.open((import.meta.env.VITE_API_URL || '') + '/api/export/excel', '_blank')
+}
+
+export function exportPDF() {
+  window.open((import.meta.env.VITE_API_URL || '') + '/api/export/pdf', '_blank')
 }
