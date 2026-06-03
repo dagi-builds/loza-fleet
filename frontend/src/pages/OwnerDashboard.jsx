@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getFleet, getActivity, getOwnerRequests, approveRequest, denyRequest, createDriver, getNotifications, getTripRequests, approveTripRequest, denyTripRequest, getDailyTrips } from '../api/fleetApi'
+import { getFleet, getActivity, getOwnerRequests, approveRequest, denyRequest, createDriver, getNotifications, getTripRequests, approveTripRequest, denyTripRequest, getDailyTrips, addNoteToRequest, exportExcel, exportPDF } from '../api/fleetApi'
 import ChartsPage from './ChartsPage'
 import SettingsPage from './SettingsPage'
 import DriverHistoryPage from './DriverHistoryPage'
@@ -58,6 +58,8 @@ export default function OwnerDashboard({ onLogout }) {
     const [actPage, setActPage] = useState(1)
     const [tripPage, setTripPage] = useState(1)
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768)
+    const [noteInputs, setNoteInputs] = useState({})
+    const [noteSaving, setNoteSaving] = useState({})
     const PER_PAGE = 5
 
     useEffect(() => {
@@ -127,6 +129,15 @@ export default function OwnerDashboard({ onLogout }) {
             setTimeout(() => setAddSuccess(false), 3000)
         } catch (e) { alert(e.message) }
         finally { setAddLoading(false) }
+    }
+
+    async function handleSaveNote(id) {
+        setNoteSaving(prev => ({ ...prev, [id]: true }))
+        try {
+            await addNoteToRequest(id, noteInputs[id] || '')
+            setRequests(prev => prev.map(r => r._id === id ? { ...r, ownerNote: noteInputs[id] } : r))
+        } catch (e) { alert(e.message) }
+        finally { setNoteSaving(prev => ({ ...prev, [id]: false })) }
     }
 
     const totalTrips = drivers.reduce((s, d) => s + Number(d.trips), 0)
@@ -240,10 +251,26 @@ export default function OwnerDashboard({ onLogout }) {
                             </div>
                         </div>
                         {r.status === 'pending' && (
-                            <div style={{ display: 'flex', gap: 6 }}>
+                            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                                 <button onClick={() => handleApprove(r._id)} style={{ flex: 1, padding: '9px', background: 'linear-gradient(135deg,#00C853,#00E676)', color: '#020B18', fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: '0.06em', borderRadius: 7, border: 'none', cursor: 'pointer' }}>✓ APPROVE</button>
                                 <button onClick={() => handleDeny(r._id)} style={{ flex: 1, padding: '9px', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', color: '#FF4757', fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: '0.06em', borderRadius: 7, cursor: 'pointer' }}>✗ DENY</button>
                             </div>
+                        )}
+                        {/* Note input */}
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                            <input
+                                type="text"
+                                placeholder="Add a note..."
+                                value={noteInputs[r._id] ?? r.ownerNote ?? ''}
+                                onChange={e => setNoteInputs(prev => ({ ...prev, [r._id]: e.target.value }))}
+                                style={{ flex: 1, background: 'rgba(2,11,24,0.8)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontFamily: "'Rajdhani',sans-serif", fontSize: 12, padding: '7px 10px', borderRadius: 6, outline: 'none' }}
+                            />
+                            <button onClick={() => handleSaveNote(r._id)} disabled={noteSaving[r._id]} style={{ background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                                {noteSaving[r._id] ? '...' : 'Save Note'}
+                            </button>
+                        </div>
+                        {r.ownerNote && !noteInputs[r._id] && (
+                            <p style={{ fontSize: 11, color: 'rgba(245,166,35,0.6)', marginTop: 5, fontStyle: 'italic' }}>📝 {r.ownerNote}</p>
                         )}
                     </div>
                 ))
@@ -343,9 +370,14 @@ export default function OwnerDashboard({ onLogout }) {
                     </h1>
                     <p style={{ fontSize: 9, color: 'rgba(226,232,240,0.3)', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase' }}>{lastUpdate && `Updated ${lastUpdate}`}</p>
                 </div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button onClick={() => setPage('charts')} style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: '#00D4FF', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📈</button>
                     <button onClick={() => setPage('settings')} style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>⚙️</button>
+
+                    {/* Export buttons */}
+                    <button onClick={exportExcel} style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00FF88', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📊 XLS</button>
+                    <button onClick={exportPDF} style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.2)', color: '#FF4757', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📄 PDF</button>
+
                     <div style={{ position: 'relative' }}>
                         <button onClick={() => setShowNotifPopup(s => !s)} style={{ background: notifications.count > 0 ? 'rgba(245,166,35,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${notifications.count > 0 ? 'rgba(245,166,35,0.4)' : 'rgba(255,255,255,0.08)'}`, color: notifications.count > 0 ? '#F5A623' : 'rgba(226,232,240,0.4)', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', position: 'relative' }}>
                             🔔
@@ -378,16 +410,13 @@ export default function OwnerDashboard({ onLogout }) {
                 <KpiCard label="Net Profit" value={fmt(totalProfit)} unit="ETB" topColor={totalProfit >= 0 ? '#00FF88' : '#FF4757'} />
             </div>
 
-            {/* ── DESKTOP LAYOUT — rows ── */}
+            {/* ── DESKTOP LAYOUT ── */}
             {isDesktop ? (
                 <div style={{ padding: '16px' }}>
-                    {/* Fleet row */}
                     <div style={{ ...sectionStyle, marginBottom: 12 }}>
                         <p style={sectionTitle}>📊 FLEET</p>
                         <FleetSection />
                     </div>
-
-                    {/* Requests + Trips side by side */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                         <div style={sectionStyle}>
                             <p style={sectionTitle}>📋 REQUESTS {pendingCount > 0 && <span style={{ fontSize: 11, background: 'rgba(245,166,35,0.15)', color: '#F5A623', padding: '1px 7px', borderRadius: 4 }}>{pendingCount} pending</span>}</p>
@@ -398,8 +427,6 @@ export default function OwnerDashboard({ onLogout }) {
                             <TripsSection />
                         </div>
                     </div>
-
-                    {/* Add Driver + Activity side by side */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
                         <div style={sectionStyle}>
                             <p style={sectionTitle}>➕ ADD DRIVER</p>
@@ -413,7 +440,7 @@ export default function OwnerDashboard({ onLogout }) {
                     </div>
                 </div>
             ) : (
-                /* ── MOBILE LAYOUT — tabs ── */
+                /* ── MOBILE LAYOUT ── */
                 <>
                     <div style={{ display: 'flex', margin: '14px 0 0', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(4,20,40,0.5)', overflowX: 'auto' }}>
                         {[
