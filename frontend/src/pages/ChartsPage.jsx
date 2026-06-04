@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getChartStats } from '../api/fleetApi'
+import { getChartStats, getTripRequests } from '../api/fleetApi'
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis,
     CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -7,12 +7,13 @@ import {
 
 export default function ChartsPage({ onBack }) {
     const [stats, setStats] = useState(null)
+    const [tripReqs, setTripReqs] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
 
     useEffect(() => {
-        getChartStats()
-            .then(setStats)
+        Promise.all([getChartStats(), getTripRequests()])
+            .then(([s, t]) => { setStats(s); setTripReqs(t) })
             .catch(e => setError(e.message))
             .finally(() => setLoading(false))
     }, [])
@@ -30,17 +31,34 @@ export default function ChartsPage({ onBack }) {
     }
 
     if (loading) return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(226,232,240,0.4)', fontFamily: "'Rajdhani',sans-serif" }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'rgba(226,232,240,0.4)', fontFamily: "'Rajdhani',sans-serif", background: '#020B18' }}>
             Loading charts...
         </div>
     )
 
     if (error) return (
-        <div style={{ padding: 24, color: '#FF4757' }}>⚠ {error}</div>
+        <div style={{ padding: 24, color: '#FF4757', background: '#020B18', minHeight: '100vh' }}>⚠ {error}</div>
     )
 
+    // Build trip requests by day (last 7 days)
+    const tripReqByDay = {}
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const key = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        tripReqByDay[key] = { total: 0, approved: 0, denied: 0, pending: 0 }
+    }
+    tripReqs.forEach(t => {
+        const key = new Date(t.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        if (tripReqByDay[key] !== undefined) {
+            tripReqByDay[key].total++
+            tripReqByDay[key][t.status]++
+        }
+    })
+    const tripReqData = Object.entries(tripReqByDay).map(([date, v]) => ({ date, ...v }))
+
     return (
-        <div style={{ height: '100%', overflowY: 'auto', padding: 24, background: '#020B18' }}>
+        <div style={{ minHeight: '100vh', overflowY: 'auto', padding: 24, background: '#020B18' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
                 <button onClick={onBack} style={{
                     background: 'none', border: '1px solid rgba(245,166,35,0.2)',
@@ -51,6 +69,23 @@ export default function ChartsPage({ onBack }) {
                 <h1 style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 28, color: '#fff', letterSpacing: '0.08em' }}>
                     FLEET ANALYTICS
                 </h1>
+            </div>
+
+            {/* Trip Requests chart */}
+            <div style={cardStyle}>
+                <p style={titleStyle}>🚛 TRIP REQUESTS — LAST 7 DAYS</p>
+                <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={tripReqData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,166,35,0.08)" />
+                        <XAxis dataKey="date" tick={{ fill: 'rgba(226,232,240,0.4)', fontSize: 10 }} />
+                        <YAxis tick={{ fill: 'rgba(226,232,240,0.4)', fontSize: 10 }} allowDecimals={false} />
+                        <Tooltip contentStyle={{ background: '#041428', border: '1px solid rgba(245,166,35,0.2)', borderRadius: 8 }} labelStyle={{ color: '#F5A623' }} itemStyle={{ color: '#fff' }} />
+                        <Legend wrapperStyle={{ color: 'rgba(226,232,240,0.4)', fontSize: 11 }} />
+                        <Bar dataKey="approved" fill="rgba(0,255,136,0.7)" name="Approved" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="pending" fill="rgba(245,166,35,0.7)" name="Pending" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="denied" fill="rgba(255,71,87,0.7)" name="Denied" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
             </div>
 
             {/* Daily Trips */}

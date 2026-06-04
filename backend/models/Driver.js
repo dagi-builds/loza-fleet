@@ -10,6 +10,8 @@ const driverSchema = new mongoose.Schema({
   profit: { type: Number, default: 0 },
   bonus: { type: Number, default: 0 },
   fuel: { type: Number, default: 0 },
+  rating: { type: Number, default: 0 },
+  ratingNote: { type: String, default: '' },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Driver', driverSchema);
