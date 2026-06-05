@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getFleet, getActivity, getOwnerRequests, approveRequest, denyRequest, createDriver, getNotifications, getTripRequests, approveTripRequest, denyTripRequest, getDailyTrips, addNoteToRequest, exportExcel, exportPDF } from '../api/fleetApi'
+import { getFleet, getActivity, getOwnerRequests, approveRequest, createDriver, getNotifications, getTripRequests, approveTripRequest, denyTripRequest, getDailyTrips, denyRequestWithNote, rateDriver } from '../api/fleetApi'
 import ChartsPage from './ChartsPage'
 import SettingsPage from './SettingsPage'
 import DriverHistoryPage from './DriverHistoryPage'
+import DenyModal from '../components/DenyModal'
+import RatingModal from '../components/RatingModal'
 
 function fmt(n) { return Number(n).toLocaleString() }
 
@@ -43,7 +45,6 @@ export default function OwnerDashboard({ onLogout }) {
     const [tripReqs, setTripReqs] = useState([])
     const [dailyTrips, setDailyTrips] = useState({})
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
     const [lastUpdate, setLastUpdate] = useState(null)
     const [driverForm, setDriverForm] = useState({ id: '', name: '', plate: '', pin: '', phone: '' })
     const [addLoading, setAddLoading] = useState(false)
@@ -58,8 +59,10 @@ export default function OwnerDashboard({ onLogout }) {
     const [actPage, setActPage] = useState(1)
     const [tripPage, setTripPage] = useState(1)
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768)
-    const [noteInputs, setNoteInputs] = useState({})
-    const [noteSaving, setNoteSaving] = useState({})
+    const [showDenyModal, setShowDenyModal] = useState(false)
+    const [denyTargetId, setDenyTargetId] = useState(null)
+    const [showRatingModal, setShowRatingModal] = useState(false)
+    const [ratingDriver, setRatingDriver] = useState(null)
     const PER_PAGE = 5
 
     useEffect(() => {
@@ -74,9 +77,9 @@ export default function OwnerDashboard({ onLogout }) {
                 getFleet(), getActivity(), getOwnerRequests(), getNotifications(), getTripRequests(), getDailyTrips()
             ])
             setDrivers(fleet); setActivity(act); setRequests(reqs)
-            setNotifications(notifs); setTripReqs(trips); setDailyTrips(daily); setError('')
+            setNotifications(notifs); setTripReqs(trips); setDailyTrips(daily)
             setLastUpdate(new Date().toLocaleTimeString())
-        } catch (e) { setError('Cannot reach server') }
+        } catch (e) { }
         finally { setLoading(false) }
     }, [])
 
@@ -88,18 +91,24 @@ export default function OwnerDashboard({ onLogout }) {
 
     async function handleApprove(id) {
         try {
-            await approveRequest(id)
+            const { request } = await fetch(`https://loza-fleet-demi.vercel.app/api/owner/requests/${id}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' } }).then(r => r.json())
             setRequests(prev => prev.map(r => r._id === id ? { ...r, status: 'approved' } : r))
             setNotifications(n => ({ ...n, count: Math.max(0, n.count - 1) }))
         } catch (e) { alert(e.message) }
     }
 
-    async function handleDeny(id) {
+    function handleDenyClick(id) {
+        setDenyTargetId(id)
+        setShowDenyModal(true)
+    }
+
+    async function confirmDeny(note) {
         try {
-            await denyRequest(id)
-            setRequests(prev => prev.map(r => r._id === id ? { ...r, status: 'denied' } : r))
+            await denyRequestWithNote(denyTargetId, note)
+            setRequests(prev => prev.map(r => r._id === denyTargetId ? { ...r, status: 'denied', ownerNote: note } : r))
             setNotifications(n => ({ ...n, count: Math.max(0, n.count - 1) }))
         } catch (e) { alert(e.message) }
+        finally { setShowDenyModal(false); setDenyTargetId(null) }
     }
 
     async function handleApproveTrip(id) {
@@ -131,13 +140,38 @@ export default function OwnerDashboard({ onLogout }) {
         finally { setAddLoading(false) }
     }
 
-    async function handleSaveNote(id) {
-        setNoteSaving(prev => ({ ...prev, [id]: true }))
+    async function handleRate(rating, note) {
         try {
-            await addNoteToRequest(id, noteInputs[id] || '')
-            setRequests(prev => prev.map(r => r._id === id ? { ...r, ownerNote: noteInputs[id] } : r))
+            await rateDriver(ratingDriver.id, rating, note)
+            setDrivers(prev => prev.map(d => d.id === ratingDriver.id ? { ...d, rating, ratingNote: note } : d))
         } catch (e) { alert(e.message) }
-        finally { setNoteSaving(prev => ({ ...prev, [id]: false })) }
+        finally { setShowRatingModal(false); setRatingDriver(null) }
+    }
+
+    function exportCSV() {
+        const rows = [
+            ['Name', 'Plate', 'ID', 'Trips', 'Fuel (ETB)', 'Bonus (ETB)', 'Net Profit (ETB)', 'Rating'],
+            ...drivers.map(d => [d.name, d.plate, d.id, d.trips, d.fuel, d.bonus, d.profit - d.fuel, d.rating || 0])
+        ]
+        const csv = rows.map(r => r.join(',')).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'loza-fleet.csv'; a.click()
+        URL.revokeObjectURL(url)
+    }
+
+    function exportRequestsCSV() {
+        const rows = [
+            ['Driver', 'Plate', 'Type', 'Amount', 'Status', 'Note', 'Date'],
+            ...requests.map(r => [r.driverName, r.plate, r.type, r.amount, r.status, r.ownerNote || '', new Date(r.createdAt).toLocaleDateString()])
+        ]
+        const csv = rows.map(r => r.join(',')).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url; a.download = 'loza-requests.csv'; a.click()
+        URL.revokeObjectURL(url)
     }
 
     const totalTrips = drivers.reduce((s, d) => s + Number(d.trips), 0)
@@ -175,13 +209,15 @@ export default function OwnerDashboard({ onLogout }) {
         <DriverHistoryPage driver={selectedDriver} onBack={() => { setPage('dashboard'); setSelectedDriver(null) }} />
     )
 
-    // ── FLEET SECTION ─────────────────────────────────────────────
     const FleetSection = () => (
         <div>
-            <input placeholder="🔍 Search driver, plate, ID..." value={driverSearch}
-                onChange={e => { setDriverSearch(e.target.value); setFleetPage(1) }}
-                style={{ width: '100%', padding: '10px 14px', marginBottom: 12, background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(245,166,35,0.15)', borderRadius: 8, color: '#E2E8F0', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
-            />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <input placeholder="🔍 Search driver, plate, ID..." value={driverSearch}
+                    onChange={e => { setDriverSearch(e.target.value); setFleetPage(1) }}
+                    style={{ flex: 1, minWidth: 160, padding: '10px 14px', background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(245,166,35,0.15)', borderRadius: 8, color: '#E2E8F0', fontSize: 13, outline: 'none' }}
+                />
+                <button onClick={exportCSV} style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00FF88', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '10px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>📥 Export CSV</button>
+            </div>
             {loading ? <p style={{ color: 'rgba(226,232,240,0.3)', textAlign: 'center', padding: 24 }}>Loading...</p> :
                 paginatedDrivers.length === 0 ? <p style={{ color: 'rgba(226,232,240,0.3)', textAlign: 'center', padding: 24 }}>No drivers found</p> :
                     paginatedDrivers.map(d => (
@@ -190,13 +226,22 @@ export default function OwnerDashboard({ onLogout }) {
                                 <div>
                                     <p style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 16, color: '#fff', letterSpacing: '0.04em' }}>{d.name}</p>
                                     <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.4)', marginTop: 2 }}>{d.plate} · {d.id}</p>
-                                    {dailyTrips[d.id] !== undefined && (
-                                        <span style={{ fontSize: 10, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', padding: '2px 7px', borderRadius: 4, display: 'inline-block', marginTop: 4 }}>
+                                    <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <span style={{ fontSize: 10, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', padding: '2px 7px', borderRadius: 4 }}>
                                             Today: {dailyTrips[d.id] || 0} trips
                                         </span>
-                                    )}
+                                        {d.rating > 0 && (
+                                            <span style={{ fontSize: 13, color: '#F5A623' }}>
+                                                {'★'.repeat(d.rating)}{'☆'.repeat(5 - d.rating)}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {d.ratingNote && <p style={{ fontSize: 10, color: 'rgba(226,232,240,0.35)', fontStyle: 'italic', marginTop: 3 }}>"{d.ratingNote}"</p>}
                                 </div>
-                                <button onClick={() => { setSelectedDriver(d); setPage('history') }} style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 6, cursor: 'pointer' }}>HISTORY →</button>
+                                <div style={{ display: 'flex', gap: 5, flexDirection: 'column', alignItems: 'flex-end' }}>
+                                    <button onClick={() => { setRatingDriver(d); setShowRatingModal(true) }} style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 6, cursor: 'pointer' }}>⭐ RATE</button>
+                                    <button onClick={() => { setSelectedDriver(d); setPage('history') }} style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 11, fontWeight: 700, padding: '5px 10px', borderRadius: 6, cursor: 'pointer' }}>HISTORY →</button>
+                                </div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
                                 {[
@@ -218,7 +263,6 @@ export default function OwnerDashboard({ onLogout }) {
         </div>
     )
 
-    // ── REQUESTS SECTION ──────────────────────────────────────────
     const RequestsSection = () => (
         <div>
             <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -226,12 +270,14 @@ export default function OwnerDashboard({ onLogout }) {
                     onChange={e => { setReqSearch(e.target.value); setReqPage(1) }}
                     style={{ flex: 1, minWidth: 120, padding: '8px 12px', background: 'rgba(4,20,40,0.9)', border: '1px solid rgba(245,166,35,0.15)', borderRadius: 7, color: '#E2E8F0', fontSize: 12, outline: 'none' }}
                 />
+                <button onClick={exportRequestsCSV} style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00FF88', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, padding: '8px 10px', borderRadius: 7, cursor: 'pointer' }}>📥 CSV</button>
                 {['all', 'pending', 'approved', 'denied'].map(f => (
                     <button key={f} onClick={() => { setReqFilter(f); setReqPage(1) }} style={{
-                        padding: '8px 10px', borderRadius: 7, border: reqFilter === f ? 'none' : '1px solid rgba(245,166,35,0.15)', cursor: 'pointer',
+                        padding: '8px 10px', borderRadius: 7, cursor: 'pointer',
                         fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                         background: reqFilter === f ? 'linear-gradient(135deg,#F5A623,#FFD166)' : 'rgba(4,20,40,0.9)',
                         color: reqFilter === f ? '#020B18' : 'rgba(226,232,240,0.4)',
+                        border: reqFilter === f ? 'none' : '1px solid rgba(245,166,35,0.15)',
                     }}>{f}</button>
                 ))}
             </div>
@@ -244,6 +290,7 @@ export default function OwnerDashboard({ onLogout }) {
                                 <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.5)', marginTop: 2 }}>{r.driverName} · {r.plate}</p>
                                 <p style={{ fontSize: 10, color: 'rgba(226,232,240,0.3)', marginTop: 2 }}>📱 {r.phone} · {new Date(r.createdAt).toLocaleString()}</p>
                                 {r.description && <p style={{ fontSize: 11, color: 'rgba(226,232,240,0.4)', marginTop: 3, fontStyle: 'italic' }}>"{r.description}"</p>}
+                                {r.ownerNote && <p style={{ fontSize: 11, color: '#FF4757', marginTop: 4, fontStyle: 'italic' }}>📝 Note: {r.ownerNote}</p>}
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <p style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 18, color: '#F5A623' }}>{fmt(r.amount)} ETB</p>
@@ -251,26 +298,10 @@ export default function OwnerDashboard({ onLogout }) {
                             </div>
                         </div>
                         {r.status === 'pending' && (
-                            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
                                 <button onClick={() => handleApprove(r._id)} style={{ flex: 1, padding: '9px', background: 'linear-gradient(135deg,#00C853,#00E676)', color: '#020B18', fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: '0.06em', borderRadius: 7, border: 'none', cursor: 'pointer' }}>✓ APPROVE</button>
-                                <button onClick={() => handleDeny(r._id)} style={{ flex: 1, padding: '9px', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', color: '#FF4757', fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: '0.06em', borderRadius: 7, cursor: 'pointer' }}>✗ DENY</button>
+                                <button onClick={() => handleDenyClick(r._id)} style={{ flex: 1, padding: '9px', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.3)', color: '#FF4757', fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: '0.06em', borderRadius: 7, cursor: 'pointer' }}>✗ DENY</button>
                             </div>
-                        )}
-                        {/* Note input */}
-                        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                            <input
-                                type="text"
-                                placeholder="Add a note..."
-                                value={noteInputs[r._id] ?? r.ownerNote ?? ''}
-                                onChange={e => setNoteInputs(prev => ({ ...prev, [r._id]: e.target.value }))}
-                                style={{ flex: 1, background: 'rgba(2,11,24,0.8)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontFamily: "'Rajdhani',sans-serif", fontSize: 12, padding: '7px 10px', borderRadius: 6, outline: 'none' }}
-                            />
-                            <button onClick={() => handleSaveNote(r._id)} disabled={noteSaving[r._id]} style={{ background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 6, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                                {noteSaving[r._id] ? '...' : 'Save Note'}
-                            </button>
-                        </div>
-                        {r.ownerNote && !noteInputs[r._id] && (
-                            <p style={{ fontSize: 11, color: 'rgba(245,166,35,0.6)', marginTop: 5, fontStyle: 'italic' }}>📝 {r.ownerNote}</p>
                         )}
                     </div>
                 ))
@@ -279,7 +310,6 @@ export default function OwnerDashboard({ onLogout }) {
         </div>
     )
 
-    // ── TRIPS SECTION ─────────────────────────────────────────────
     const TripsSection = () => (
         <div>
             {tripReqs.length === 0 ? <p style={{ color: 'rgba(226,232,240,0.25)', textAlign: 'center', padding: 24 }}>No trip requests yet</p> :
@@ -306,7 +336,6 @@ export default function OwnerDashboard({ onLogout }) {
         </div>
     )
 
-    // ── ADD DRIVER SECTION ────────────────────────────────────────
     const AddDriverSection = () => (
         <div>
             {addSuccess && <div style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.25)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13, fontWeight: 600, color: '#00FF88', textAlign: 'center' }}>✅ Driver saved!</div>}
@@ -330,7 +359,6 @@ export default function OwnerDashboard({ onLogout }) {
         </div>
     )
 
-    // ── ACTIVITY SECTION ──────────────────────────────────────────
     const ActivitySection = () => (
         <div style={{ background: 'rgba(4,20,40,0.85)', border: '1px solid rgba(245,166,35,0.1)', borderRadius: 10, overflow: 'hidden' }}>
             {paginatedActivity.length === 0 ? (
@@ -362,6 +390,10 @@ export default function OwnerDashboard({ onLogout }) {
         <div style={{ minHeight: '100vh', background: '#020B18', backgroundImage: `linear-gradient(rgba(0,212,255,0.018) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.018) 1px, transparent 1px)`, backgroundSize: '44px 44px' }}>
             <div className="et-bar" />
 
+            {/* Modals */}
+            {showDenyModal && <DenyModal onConfirm={confirmDeny} onCancel={() => { setShowDenyModal(false); setDenyTargetId(null) }} />}
+            {showRatingModal && ratingDriver && <RatingModal driver={ratingDriver} onConfirm={handleRate} onCancel={() => { setShowRatingModal(false); setRatingDriver(null) }} />}
+
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(245,166,35,0.1)', background: 'rgba(4,20,40,0.9)', flexWrap: 'wrap', gap: 8 }}>
                 <div>
@@ -373,11 +405,6 @@ export default function OwnerDashboard({ onLogout }) {
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button onClick={() => setPage('charts')} style={{ background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)', color: '#00D4FF', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📈</button>
                     <button onClick={() => setPage('settings')} style={{ background: 'rgba(245,166,35,0.08)', border: '1px solid rgba(245,166,35,0.2)', color: '#F5A623', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>⚙️</button>
-
-                    {/* Export buttons */}
-                    <button onClick={exportExcel} style={{ background: 'rgba(0,255,136,0.08)', border: '1px solid rgba(0,255,136,0.2)', color: '#00FF88', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📊 XLS</button>
-                    <button onClick={exportPDF} style={{ background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.2)', color: '#FF4757', fontFamily: "'Rajdhani',sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '7px 10px', borderRadius: 7, cursor: 'pointer' }}>📄 PDF</button>
-
                     <div style={{ position: 'relative' }}>
                         <button onClick={() => setShowNotifPopup(s => !s)} style={{ background: notifications.count > 0 ? 'rgba(245,166,35,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${notifications.count > 0 ? 'rgba(245,166,35,0.4)' : 'rgba(255,255,255,0.08)'}`, color: notifications.count > 0 ? '#F5A623' : 'rgba(226,232,240,0.4)', fontSize: 16, padding: '7px 10px', borderRadius: 7, cursor: 'pointer', position: 'relative' }}>
                             🔔
@@ -410,7 +437,7 @@ export default function OwnerDashboard({ onLogout }) {
                 <KpiCard label="Net Profit" value={fmt(totalProfit)} unit="ETB" topColor={totalProfit >= 0 ? '#00FF88' : '#FF4757'} />
             </div>
 
-            {/* ── DESKTOP LAYOUT ── */}
+            {/* Desktop Layout */}
             {isDesktop ? (
                 <div style={{ padding: '16px' }}>
                     <div style={{ ...sectionStyle, marginBottom: 12 }}>
@@ -440,7 +467,7 @@ export default function OwnerDashboard({ onLogout }) {
                     </div>
                 </div>
             ) : (
-                /* ── MOBILE LAYOUT ── */
+                /* Mobile Layout */
                 <>
                     <div style={{ display: 'flex', margin: '14px 0 0', borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(4,20,40,0.5)', overflowX: 'auto' }}>
                         {[

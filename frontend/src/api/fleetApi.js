@@ -29,9 +29,18 @@ export function approveRequest(id) {
   return request(`/owner/requests/${id}/approve`, { method: 'POST' })
 }
 
-export function denyRequest(id) {
-  return request(`/owner/requests/${id}/deny`, { method: 'POST' })
+export function denyRequestWithNote(id, note) {
+  return request(`/owner/requests/${id}/deny-with-note`, { method: 'POST', body: JSON.stringify({ note }) })
 }
+
+export function rateDriver(driverId, rating, note) {
+  return request(`/drivers/${driverId}/rate`, { method: 'POST', body: JSON.stringify({ rating, note }) })
+}
+
+export function getDailyTrips() {
+  return request('/stats/daily-trips')
+}
+
 
 export function addNoteToRequest(id, note) {
   return request(`/owner/requests/${id}/note`, {
