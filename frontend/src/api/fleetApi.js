@@ -1,4 +1,5 @@
 const BASE = 'https://loza-fleet-demi.vercel.app/api'
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
@@ -36,8 +37,19 @@ export function approveRequest(id) {
   return request(`/owner/requests/${id}/approve`, { method: 'POST' })
 }
 
+export function denyRequest(id) {
+  return request(`/owner/requests/${id}/deny`, { method: 'POST' })
+}
+
 export function denyRequestWithNote(id, note) {
   return request(`/owner/requests/${id}/deny-with-note`, { method: 'POST', body: JSON.stringify({ note }) })
+}
+
+export function addNoteToRequest(id, note) {
+  return request(`/owner/requests/${id}/note`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  })
 }
 
 // ── Manager ────────────────────────────────────────────────────
@@ -91,6 +103,10 @@ export function getTripRequests() {
   return request('/trips/requests')
 }
 
+export function getOwnerTripRequests() {
+  return request('/trips/requests')
+}
+
 export function approveTripRequest(id) {
   return request(`/trips/requests/${id}/approve`, { method: 'POST' })
 }
@@ -118,4 +134,13 @@ export function getChartStats() {
 
 export function getDailyTrips() {
   return request('/stats/daily-trips')
+}
+
+// ── Export ─────────────────────────────────────────────────────
+export function exportExcel() {
+  window.open('https://loza-fleet-demi.vercel.app/api/export/excel', '_blank')
+}
+
+export function exportPDF() {
+  window.open('https://loza-fleet-demi.vercel.app/api/export/pdf', '_blank')
 }
